@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#fff8f6">
+  <meta name="description" content="Một lời tri ân nhỏ được gửi trong chiếc phong bì.">
+  <title>Một lời tri ân nhỏ</title>
+
+  <style>
+    :root {
+      --background: #fff8f6;
+      --paper: #fffefd;
+      --envelope: #f3dce2;
+      --envelope-light: #f8e8eb;
+      --envelope-deep: #eac5cf;
+      --rose: #c27d91;
+      --rose-dark: #9b6174;
+      --ink: #76535f;
+      --muted: #987f87;
+      --shadow: 0 22px 55px rgba(133, 84, 99, 0.16);
+      --font: "Segoe UI", Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      min-width: 320px;
+      min-height: 100%;
+      background: var(--background);
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 34px 14px 42px;
+      display: grid;
+      place-items: center;
+      overflow-x: hidden;
+      color: var(--ink);
+      font-family: var(--font);
+      background:
+        radial-gradient(ellipse at 14% 18%, rgba(243, 217, 224, .68), transparent 34%),
+        radial-gradient(ellipse at 88% 82%, rgba(252, 233, 237, .82), transparent 38%),
+        linear-gradient(145deg, #fff9f7, var(--background));
+    }
+
+    button, video { font: inherit; }
+
+    .page {
+      width: min(100%, 620px);
+      margin-inline: auto;
+      text-align: center;
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: #bd7187;
+      font-size: .76rem;
+      font-weight: 700;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      color: #79545f;
+      font-size: clamp(1.8rem, 5vw, 2.4rem);
+      font-weight: 700;
+      letter-spacing: -.045em;
+    }
+
+    .intro {
+      max-width: 430px;
+      margin: 12px auto 0;
+      color: var(--muted);
+      font-size: .98rem;
+      line-height: 1.65;
+    }
+
+    .scene {
+      position: relative;
+      width: min(100%, 470px);
+      height: 520px;
+      margin: 8px auto 0;
+      isolation: isolate;
+      --open-distance: 260px;
+    }
+
+    .halo {
+      position: absolute;
+      top: 42px;
+      left: 50%;
+      width: min(390px, 88vw);
+      aspect-ratio: 1;
+      border: 1px solid rgba(217, 164, 179, .23);
+      border-radius: 50%;
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    .halo::before,
+    .halo::after {
+      position: absolute;
+      content: "";
+      border: 1px solid rgba(217, 164, 179, .15);
+      border-radius: 50%;
+      inset: 18px;
+    }
+
+    .halo::after { inset: 38px; }
+
+    /* Thân phong bì lớn hơn lá thư một chút ở cả chiều rộng và chiều cao. */
+    .envelope {
+      position: absolute;
+      z-index: 2;
+      left: 50%;
+      bottom: -90px;
+      width: min(420px, 91vw);
+      height: 350px;
+      border: 1px solid rgba(224, 187, 197, .75);
+      border-radius: 17px 17px 21px 21px;
+      background: linear-gradient(145deg, var(--envelope-light), var(--envelope-deep));
+      box-shadow: var(--shadow);
+      transform: translateX(-50%);
+    }
+
+    /* Tấm thư nhỏ hơn thân phong bì và chỉ nhô ra khoảng 30 px lúc đóng. */
+    .letter {
+      position: absolute;
+      z-index: 3;
+      top: -14px;
+      left: 5%;
+      width: 90%;
+      height: 330px;
+      padding: 15px 15px 16px;
+      overflow: hidden;
+      border: 1px solid rgba(231, 211, 212, .98);
+      border-radius: 13px 13px 8px 8px;
+      background:
+        linear-gradient(90deg, transparent 0 20px, rgba(238, 216, 216, .42) 20px 21px, transparent 21px),
+        linear-gradient(160deg, #fff, #fffaf8);
+      box-shadow: 0 8px 23px rgba(104, 67, 77, .13);
+      transform: translate3d(0, 0, 0);
+      transition: transform 620ms cubic-bezier(.22, .78, .22, 1), box-shadow 450ms ease;
+      will-change: transform;
+    }
+
+    /* Khi thư chưa được kéo, không để lộ chữ hoặc khung video. */
+    .letter-content {
+      visibility: hidden;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(8px);
+      transition: opacity 320ms ease, transform 420ms ease, visibility 0s linear 420ms;
+    }
+
+    .video-frame {
+      width: 100%;
+      overflow: hidden;
+      border: 5px solid #fff;
+      border-radius: 10px;
+      background: #282326;
+      box-shadow: 0 5px 17px rgba(91, 65, 72, .14);
+    }
+
+    .video-frame video {
+      display: block;
+      width: 100%;
+      max-height: 175px;
+      aspect-ratio: 16 / 9;
+      object-fit: contain;
+      background: #211d1e;
+    }
+
+    .letter-kicker {
+      margin: 12px 0 5px;
+      color: var(--rose);
+      font-size: .68rem;
+      font-weight: 700;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    .letter-title {
+      margin: 0 0 7px;
+      color: #79545f;
+      font-size: 1.18rem;
+      font-weight: 700;
+    }
+
+    .message {
+      max-width: 290px;
+      margin: 0 auto;
+      color: #705c63;
+      font-size: .84rem;
+      line-height: 1.55;
+      text-wrap: balance;
+    }
+
+    /* Mặt trước che gần hết lá thư; hai đường gấp tạo hình phong bì. */
+    .front-cover {
+      position: absolute;
+      z-index: 5;
+      top: 17px;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      overflow: hidden;
+      border-radius: 0 0 20px 20px;
+      background: linear-gradient(145deg, #f7e3e7, #f1d2da 76%, #ecc8d2);
+      pointer-events: none;
+    }
+
+    .fold-lines {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    .seal {
+      position: absolute;
+      z-index: 7;
+      top: 65%;
+      left: 50%;
+      width: 43px;
+      height: 43px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, .75);
+      border-radius: 50%;
+      color: #fff;
+      background: linear-gradient(145deg, #c98598, #b96f84);
+      box-shadow: 0 4px 12px rgba(120, 69, 84, .2);
+      font-size: 1rem;
+      transform: translate(-50%, -50%);
+      transition: opacity 220ms ease, transform 280ms ease;
+      pointer-events: none;
+    }
+
+    /* Tay kéo gắn với mép trên của giấy, không che phần nội dung. */
+    .pull-handle {
+      position: absolute;
+      z-index: 9;
+      top: -5px;
+      left: 50%;
+      min-width: 144px;
+      min-height: 37px;
+      padding: 8px 15px;
+      border: 1px solid rgba(217, 164, 179, .72);
+      border-top: 0;
+      border-radius: 0 0 12px 12px;
+      color: var(--rose-dark);
+      background: #fffaf9;
+      box-shadow: 0 5px 13px rgba(119, 75, 87, .12);
+      font-size: .76rem;
+      font-weight: 700;
+      letter-spacing: .04em;
+      transform: translateX(-50%);
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+    }
+
+    .pull-handle:active { cursor: grabbing; }
+    .pull-handle:focus-visible,
+    .reset-button:focus-visible {
+      outline: 3px solid rgba(185, 111, 132, .5);
+      outline-offset: 4px;
+    }
+
+    .drag-hint {
+      position: relative;
+      margin: 98px 10px 0;
+      color: var(--muted);
+      font-size: .84rem;
+      line-height: 1.5;
+      text-align: center;
+      transition: opacity 220ms ease, visibility 220ms ease;
+    }
+
+    /* Khi thư đang được kéo ra, tiêu đề nhường không gian cho lá thư. */
+    .page .eyebrow,
+    .page h1,
+    .page .intro {
+      transition: opacity 300ms ease, transform 350ms ease;
+    }
+
+    .page.is-letter-moving .eyebrow,
+    .page.is-letter-moving h1,
+    .page.is-letter-moving .intro,
+    .page.is-letter-moving .drag-hint {
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-8px);
+      pointer-events: none;
+    }
+
+    .reset-button {
+      margin-top: 2px;
+      padding: 10px 17px;
+      border: 1px solid rgba(185, 111, 132, .35);
+      border-radius: 999px;
+      color: var(--rose-dark);
+      background: rgba(255, 253, 251, .92);
+      font-size: .84rem;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    .reset-button:hover { background: #fff; }
+    .reset-button[hidden] { display: none; }
+
+    .status {
+      min-height: 1.4em;
+      margin: 8px 0 0;
+      color: var(--rose-dark);
+      font-size: .78rem;
+    }
+
+    /* Khi kéo, giấy nằm dưới mặt trước phong bì nên chỉ phần đã nhô ra mới nhìn thấy. */
+    .scene.is-dragging .letter {
+      transition: none;
+    }
+
+    /* Sau khi kéo gần hết, giấy trượt nốt vào vị trí mở nhưng vẫn bị phong bì che. */
+    .scene.is-finishing .letter {
+      transition: transform 560ms cubic-bezier(.22, .78, .22, 1);
+    }
+
+    .scene.is-open .letter {
+      z-index: 8;
+      transform: translate3d(0, calc(-1 * var(--open-distance)), 0);
+      box-shadow: 0 20px 45px rgba(100, 68, 77, .2);
+    }
+
+    .scene.is-open .letter-content {
+      visibility: visible;
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+      transition-delay: 100ms, 100ms, 0s;
+    }
+
+    .scene.is-open .seal {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(.72);
+    }
+
+    .scene.is-open .pull-handle {
+      color: #a98a93;
+      background: #fff;
+      cursor: default;
+    }
+
+    @media (max-width: 460px) {
+      body { padding: 27px 10px 32px; }
+      .scene {
+        height: 500px;
+        --open-distance: 250px;
+      }
+      .drag-hint { margin-top: 83px; }
+      .envelope {
+        bottom: -67px;
+        width: min(420px, 93vw);
+        height: 330px;
+      }
+      .letter {
+        height: 310px;
+        padding: 13px 12px 14px;
+      }
+      .video-frame video { max-height: 190px; }
+      .letter-kicker { margin-top: 9px; }
+      .letter-title { font-size: 1.08rem; }
+      .message { font-size: .78rem; }
+      .seal { top: 64%; }
+      .drag-hint { bottom: 13px; }
+    }
+
+    @media (max-width: 350px) {
+      .letter { height: 294px; }
+      .video-frame video { max-height: 160px; }
+      .scene { --open-distance: 235px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        transition-duration: .01ms !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <p class="eyebrow">A little note of gratitude</p>
+    <h1>Một lời tri ân nhỏ</h1>
+    <p class="intro">Một món quà nhỏ được gửi gắm trong chiếc phong bì này.</p>
+
+    <section class="scene" id="scene" aria-label="Phong bì tri ân có thể kéo mở">
+      <div class="halo" aria-hidden="true"></div>
+
+      <div class="envelope" id="envelope">
+        <article class="letter" id="letter" aria-label="Lá thư và video tri ân">
+          <div class="letter-content" id="letterContent">
+            <div class="video-frame">
+              <video id="thankYouVideo" controls playsinline preload="metadata">
+                <!-- ĐỔI videotrian.mp4 thành đúng tên tệp video của bạn nếu khác. -->
+                <source src="videotrian.mp4" type="video/mp4">
+                Trình duyệt của bạn chưa hỗ trợ phát video HTML5.
+              </video>
+            </div>
+
+            <p class="letter-kicker">With gratitude</p>
+            <h2 class="letter-title">Gửi thầy cô thân mến</h2>
+            <p class="message">
+              Cảm ơn thầy cô đã luôn tận tâm dìu dắt chúng em.<br>
+              Kính chúc thầy cô luôn có nhiều sức khỏe.
+            </p>
+          </div>
+
+          <button
+            class="pull-handle"
+            id="pullHandle"
+            type="button"
+            aria-label="Giữ và kéo lá thư lên để mở"
+          >KÉO THƯ LÊN</button>
+        </article>
+
+        <div class="front-cover" aria-hidden="true">
+          <svg class="fold-lines" viewBox="0 0 420 350" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M1 1 L210 222 L419 1" fill="none" stroke="rgba(255,255,255,.48)" stroke-width="2"/>
+            <path d="M1 1 L210 222 L419 1" fill="none" stroke="rgba(190,135,151,.16)" stroke-width="1" transform="translate(0 3)"/>
+          </svg>
+        </div>
+
+        <div class="seal" aria-hidden="true">♥</div>
+      </div>
+
+    </section>
+
+    <p class="drag-hint" id="dragHint">Giữ phần giấy nhô lên rồi kéo nhẹ lên trên</p>
+
+    <button class="reset-button" id="resetButton" type="button" hidden>
+      Đưa thư về phong bì
+    </button>
+    <p class="status" id="status" aria-live="polite"></p>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const page = document.querySelector(".page");
+      const scene = document.getElementById("scene");
+      const letter = document.getElementById("letter");
+      const handle = document.getElementById("pullHandle");
+      const hint = document.getElementById("dragHint");
+      const resetButton = document.getElementById("resetButton");
+      const status = document.getElementById("status");
+      const video = document.getElementById("thankYouVideo");
+
+      if (!page || !scene || !letter || !handle || !hint || !resetButton || !status || !video) return;
+
+      const OPEN_DISTANCE = () =>
+        window.matchMedia("(max-width: 350px)").matches ? 235 :
+        window.matchMedia("(max-width: 460px)").matches ? 250 : 260;
+      const OPEN_THRESHOLD = () => OPEN_DISTANCE() * 0.92;
+
+      let pullDistance = 0;
+      let pointerStartY = 0;
+      let pointerStartX = 0;
+      let distanceAtStart = 0;
+      let activePointerId = null;
+      let dragging = false;
+      let opening = false;
+      let opened = false;
+      let openFallbackTimer = null;
+      let openTransitionHandler = null;
+
+      function setPullDistance(distance, horizontalOffset = 0) {
+        const maximum = OPEN_DISTANCE();
+
+        // Một lực cản nhẹ ở cuối hành trình tạo cảm giác giấy có độ đàn hồi.
+        let easedDistance = distance;
+        if (easedDistance > maximum) {
+          easedDistance = maximum + (easedDistance - maximum) * 0.14;
+        }
+
+        pullDistance = Math.max(0, Math.min(maximum + 8, easedDistance));
+
+        // Giấy hơi nghiêng theo tay kéo, nhưng biên độ được giới hạn để không bị méo.
+        const rotation = Math.max(-1.1, Math.min(1.1, horizontalOffset * 0.04));
+        letter.style.transform = `translate3d(0, ${-pullDistance}px, 0) rotate(${rotation}deg)`;
+
+        const progress = Math.min(1, pullDistance / maximum);
+        letter.style.boxShadow = `0 ${8 + progress * 10}px ${23 + progress * 20}px rgba(104, 67, 77, ${0.13 + progress * 0.07})`;
+      }
+
+      function completeOpen() {
+        if (!opening) return;
+
+        opening = false;
+        opened = true;
+        pullDistance = OPEN_DISTANCE();
+
+        if (openFallbackTimer !== null) {
+          window.clearTimeout(openFallbackTimer);
+          openFallbackTimer = null;
+        }
+        if (openTransitionHandler) {
+          letter.removeEventListener("transitionend", openTransitionHandler);
+          openTransitionHandler = null;
+        }
+
+        // Chỉ đưa lá thư lên lớp trên và hiện video sau khi giấy đã kéo hết hành trình.
+        scene.classList.remove("is-finishing", "is-dragging");
+        scene.classList.add("is-open");
+        page.classList.add("is-letter-moving");
+        letter.style.transition = "";
+        letter.style.transform = "";
+        letter.style.boxShadow = "";
+
+        resetButton.hidden = false;
+        handle.textContent = "ĐÃ MỞ THƯ";
+        handle.setAttribute("aria-label", "Lá thư đã được mở");
+        status.textContent = "Lá thư đã được kéo ra. Nhấn phát để xem video nhé.";
+      }
+
+      function openLetter() {
+        if (opened || opening) return;
+
+        opening = true;
+        dragging = false;
+        activePointerId = null;
+        page.classList.add("is-letter-moving");
+        scene.classList.remove("is-dragging");
+        scene.classList.add("is-finishing");
+
+        const maximum = OPEN_DISTANCE();
+        handle.textContent = "ĐANG MỞ THƯ...";
+        handle.setAttribute("aria-label", "Lá thư đang được kéo ra khỏi phong bì");
+        hint.textContent = "Lá thư đang được nhẹ nhàng đưa ra...";
+        status.textContent = "";
+
+        openTransitionHandler = (event) => {
+          if (event.target === letter && event.propertyName === "transform") {
+            completeOpen();
+          }
+        };
+        letter.addEventListener("transitionend", openTransitionHandler);
+
+        // Chuyển động hoàn tất vẫn nằm dưới mặt trước phong bì; nội dung chưa được lộ ra.
+        letter.style.transition = "transform 560ms cubic-bezier(.22, .78, .22, 1)";
+        window.requestAnimationFrame(() => {
+          if (!opening) return;
+          letter.style.transform = `translate3d(0, ${-maximum}px, 0)`;
+          letter.style.boxShadow = "0 18px 39px rgba(104, 67, 77, .20)";
+        });
+
+        // Dự phòng cho trình duyệt không phát transitionend (ví dụ khi giảm chuyển động).
+        openFallbackTimer = window.setTimeout(completeOpen, 760);
+      }
+
+      function resetDrag() {
+        dragging = false;
+        activePointerId = null;
+        scene.classList.remove("is-dragging");
+        page.classList.remove("is-letter-moving");
+        letter.style.transform = "";
+        letter.style.boxShadow = "";
+        pullDistance = 0;
+        hint.textContent = "Giữ phần giấy nhô lên rồi kéo nhẹ lên trên";
+      }
+
+      function closeLetter() {
+        video.pause();
+        try {
+          video.currentTime = 0;
+        } catch (_error) {
+          // Nếu metadata chưa tải, video vẫn được đóng bình thường.
+        }
+
+        if (openFallbackTimer !== null) {
+          window.clearTimeout(openFallbackTimer);
+          openFallbackTimer = null;
+        }
+        if (openTransitionHandler) {
+          letter.removeEventListener("transitionend", openTransitionHandler);
+          openTransitionHandler = null;
+        }
+
+        opening = false;
+        opened = false;
+        dragging = false;
+        activePointerId = null;
+        scene.classList.remove("is-open", "is-finishing", "is-dragging");
+        page.classList.remove("is-letter-moving");
+        letter.style.transition = "";
+        letter.style.transform = "";
+        letter.style.boxShadow = "";
+        pullDistance = 0;
+        resetButton.hidden = true;
+        handle.textContent = "KÉO THƯ LÊN";
+        handle.setAttribute("aria-label", "Giữ và kéo lá thư lên để mở");
+        hint.textContent = "Giữ phần giấy nhô lên rồi kéo nhẹ lên trên";
+        status.textContent = "";
+      }
+
+      handle.addEventListener("pointerdown", (event) => {
+        if (opened || opening || (event.pointerType === "mouse" && event.button !== 0)) return;
+
+        event.preventDefault();
+        dragging = true;
+        activePointerId = event.pointerId;
+        pointerStartY = event.clientY;
+        pointerStartX = event.clientX;
+        distanceAtStart = pullDistance;
+        scene.classList.add("is-dragging");
+        page.classList.add("is-letter-moving");
+
+        try {
+          handle.setPointerCapture(event.pointerId);
+        } catch (_error) {
+          // Một số trình duyệt có thể tự quản lý pointer capture.
+        }
+      });
+
+      handle.addEventListener("pointermove", (event) => {
+        if (!dragging || event.pointerId !== activePointerId) return;
+
+        event.preventDefault();
+        const movedUp = pointerStartY - event.clientY;
+        const movedSideways = event.clientX - pointerStartX;
+        setPullDistance(distanceAtStart + movedUp, movedSideways);
+
+        hint.textContent = pullDistance >= OPEN_THRESHOLD()
+          ? "Gần mở xong rồi, thả tay nhé!"
+          : "Kéo lá thư lên trên...";
+      });
+
+      function finishDrag(event) {
+        if (!dragging || (event && event.pointerId !== activePointerId)) return;
+
+        dragging = false;
+        activePointerId = null;
+        scene.classList.remove("is-dragging");
+
+        if (pullDistance >= OPEN_THRESHOLD()) {
+          openLetter();
+        } else {
+          // Buông tay sớm: giấy trượt êm về đúng vị trí trong phong bì.
+          letter.style.transform = "";
+          letter.style.boxShadow = "";
+          pullDistance = 0;
+          page.classList.remove("is-letter-moving");
+          hint.textContent = "Giữ phần giấy nhô lên rồi kéo nhẹ lên trên";
+        }
+      }
+
+      function cancelDrag(event) {
+        if (!dragging || (event && event.pointerId !== activePointerId)) return;
+        resetDrag();
+      }
+
+      handle.addEventListener("pointerup", finishDrag);
+      handle.addEventListener("pointercancel", cancelDrag);
+      handle.addEventListener("lostpointercapture", () => {
+        if (dragging) cancelDrag();
+      });
+
+      handle.addEventListener("keydown", (event) => {
+        if (opened || opening) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openLetter();
+        }
+      });
+
+      resetButton.addEventListener("click", closeLetter);
+
+      video.addEventListener("error", () => {
+        status.textContent = "Không tìm thấy videotrian.mp4. Hãy kiểm tra tên video và đặt video cùng thư mục với tệp HTML.";
+      });
+
+      video.addEventListener("loadedmetadata", () => {
+        if (status.textContent.startsWith("Không tìm thấy videotrian.mp4")) {
+          status.textContent = "Video đã sẵn sàng.";
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
