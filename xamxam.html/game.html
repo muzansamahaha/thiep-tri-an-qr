@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Angry Gamer - Bắn Chim Dội Vĩnh Viễn!</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    background: radial-gradient(circle at 50% 30%, #1a0033, #000);
+    font-family: 'Segoe UI', sans-serif;
+    overflow: hidden;
+    padding: 10px;
+  }
+  h1 {
+    background: linear-gradient(90deg, #ff0066, #ffcc00, #00ffff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-size: 22px;
+    letter-spacing: 2px;
+    text-align: center;
+  }
+  canvas {
+    display: block;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(255,0,102,0.3),
+                0 0 0 2px rgba(255,255,255,0.1);
+    max-width: 100%;
+    max-height: 82vh;
+    cursor: crosshair;
+    touch-action: none;
+  }
+  .hint {
+    color: #888;
+    font-size: 12px;
+    text-align: center;
+    padding: 0 10px;
+  }
+  .hint b { color: #ffcc00; }
+</style>
+</head>
+<body>
+<h1>🎮 ANGRY GAMER - DỘI VĨNH VIỄN</h1>
+<canvas id="game" width="1100" height="750"></canvas>
+<p class="hint">Kéo chim → thả để bắn | Chim <b>dội vĩnh viễn</b> | <b>Space</b> tạo chim mới | <b>R</b> chơi lại</p>
+
+<script>
+// ===== SETUP =====
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const GROUND_Y = H - 70;
+const GRAVITY = 0.4;                // trọng lực
+const MAX_DRAG = 200;               // kéo tối đa (xa hơn bản cũ)
+const LAUNCH_POWER = 0.28;          // hệ số lực bắn
+const AUTO_RESPAWN_FRAMES = 1000;   // bay 1000 frame thì chim mới xuất hiện
+
+const game = {
+  slingshot: { x: 160, y: GROUND_Y - 130 },
+  bird: null,
+  targets: [],
+  particles: [],
+  clouds: [],
+  score: 0,
+  shots: 0,
+  dragging: false,
+  state: 'playing'
+};
+
+// ===== KHỞI TẠO =====
+function createCloud() {
+  return {
+    x: Math.random() * W,
+    y: 40 + Math.random() * 200,
+    scale: 0.6 + Math.random() * 1.0,
+    speed: 0.2 + Math.random() * 0.3
+  };
+}
+
+function createTargets() {
+  const colors = ['#4caf50', '#8bc34a', '#00c853', '#43a047', '#66bb6a', '#2e7d32'];
+  const arr = [];
+  for (let i = 0; i < 6; i++) {
+    arr.push({
+      x: 680 + i * 65 + (Math.random() - 0.5) * 30,
+      y: 300 + (Math.random() - 0.5) * 250,
+      r: 22,
+      alive: true,
+      color: colors[i % colors.length]
+    });
+  }
+  return arr;
+}
+
+function spawnBird() {
+  game.bird = {
+    x: game.slingshot.x,
+    y: game.slingshot.y,
+    vx: 0, vy: 0, r: 16,
+    state: 'ready',
+    framesAlive: 0,
+    trail: []
+  };
+  game.dragging = false;
+}
+
+function resetGame() {
+  game.score = 0;
+  game.shots = 0;
+  game.state = 'playing';
+  game.targets = createTargets();
+  game.particles = [];
+  game.clouds = Array.from({ length: 5 }, createCloud);
+  spawnBird();
+}
+
+// ===== INPUT =====
+function getPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const cx = e.touches ? e.touches[0].clientX : e.clientX;
+  const cy = e.touches ? e.touches[0].clientY : e.clientY;
+  return { x: (cx - rect.left) * scaleX, y: (cy - rect.top) * scaleY };
+}
+
+function onDown(e) {
+  e.preventDefault();
+  if (game.state !== 'playing' || !game.bird || game.bird.state !== 'ready') return;
+  const pos = getPos(e);
+  const dx = pos.x - game.bird.x;
+  const dy = pos.y - game.bird.y;
+  if (Math.sqrt(dx*dx + dy*dy) < 60) {
+    game.bird.state = 'dragging';
+    game.dragging = true;
+  }
+}
+
+function onMove(e) {
+  if (!game.dragging) return;
+  e.preventDefault();
+  const pos = getPos(e);
+  let dx = pos.x - game.slingshot.x;
+  let dy = pos.y - game.slingshot.y;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  if (dist > MAX_DRAG) {
+    dx = (dx / dist) * MAX_DRAG;
+    dy = (dy / dist) * MAX_DRAG;
+  }
+  game.bird.x = game.slingshot.x + dx;
+  game.bird.y = game.slingshot.y + dy;
+}
+
+function onUp(e) {
+  if (!game.dragging) return;
+  e.preventDefault();
+  game.dragging = false;
+
+  const dx = game.slingshot.x - game.bird.x;
+  const dy = game.slingshot.y - game.bird.y;
+
+  if (Math.sqrt(dx*dx + dy*dy) < 12) {
+    game.bird.x = game.slingshot.x;
+    game.bird.y = game.slingshot.y;
+    game.bird.state = 'ready';
+    return;
+  }
+
+  game.bird.vx = dx * LAUNCH_POWER;
+  game.bird.vy = dy * LAUNCH_POWER;
+  game.bird.state = 'flying';
+  game.bird.framesAlive = 0;
+  game.shots++;
+}
+
+canvas.addEventListener('mousedown', onDown);
+canvas.addEventListener('mousemove', onMove);
+canvas.addEventListener('mouseup', onUp);
+canvas.addEventListener('touchstart', onDown, { passive: false });
+canvas.addEventListener('touchmove', onMove, { passive: false });
+canvas.addEventListener('touchend', onUp, { passive: false });
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'r' || e.key === 'R') resetGame();
+  if (e.key === ' ') {
+    e.preventDefault();
+    if (game.state === 'playing' && game.bird && game.bird.state === 'flying') {
+      addParticles(game.bird.x, game.bird.y, '#ff9800', 20);
+      spawnBird();
+    }
+  }
+});
+
+// ===== PARTICLES =====
+function addParticles(x, y, color, count = 18) {
+  for (let i = 0; i < count; i++) {
+    const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
+    const speed = 2 + Math.random() * 5;
+    game.particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 1,
+      color,
+      size: 3 + Math.random() * 4
+    });
+  }
+}
+
+// ===== UPDATE =====
+function update() {
+  game.clouds.forEach(c => {
+    c.x += c.speed;
+    if (c.x > W + 100) c.x = -100;
+  });
+
+  game.particles.forEach(p => {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.2;
+    p.life -= 0.02;
+  });
+  game.particles = game.particles.filter(p => p.life > 0);
+
+  if (game.state === 'won') return;
+
+  const b = game.bird;
+  if (b && b.state === 'flying') {
+    b.framesAlive++;
+    b.vy += GRAVITY;
+    b.x += b.vx;
+    b.y += b.vy;
+
+    b.trail.push({ x: b.x, y: b.y });
+    if (b.trail.length > 18) b.trail.shift();
+
+    // ⭐ DỘI ĐẤT — VĨNH VIỄN (hệ số 1.0, không mất năng lượng)
+    if (b.y + b.r >= GROUND_Y) {
+      b.y = GROUND_Y - b.r;
+      b.vy = -Math.abs(b.vy);
+    }
+
+    // ⭐ DỘI TRẦN — VĨNH VIỄN
+    if (b.y - b.r <= 0) {
+      b.y = b.r;
+      b.vy = Math.abs(b.vy);
+    }
+
+    // ⭐ DỘI TƯỜNG TRÁI/PHẢI — VĨNH VIỄN
+    if (b.x + b.r >= W) { b.x = W - b.r; b.vx = -Math.abs(b.vx); }
+    if (b.x - b.r <= 0) { b.x = b.r; b.vx = Math.abs(b.vx); }
+
+    // Va chạm mục tiêu
+    game.targets.forEach(t => {
+      if (!t.alive) return;
+      const dx = b.x - t.x;
+      const dy = b.y - t.y;
+      if (Math.sqrt(dx*dx + dy*dy) < b.r + t.r) {
+        t.alive = false;
+        game.score += 100;
+        addParticles(t.x, t.y, t.color, 20);
+      }
+    });
+
+    // Tự động hồi sinh sau 1000 frame
+    if (b.framesAlive >= AUTO_RESPAWN_FRAMES) {
+      addParticles(b.x, b.y, '#ff9800', 25);
+      spawnBird();
+    }
+
+    // Chiến thắng
+    if (game.targets.every(t => !t.alive)) {
+      game.state = 'won';
+    }
+  }
+}
+
+// ===== RENDER =====
+function drawCloud(c) {
+  ctx.save();
+  ctx.translate(c.x, c.y);
+  ctx.scale(c.scale, c.scale);
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.beginPath();
+  ctx.arc(0, 0, 25, 0, Math.PI * 2);
+  ctx.arc(25, 5, 20, 0, Math.PI * 2);
+  ctx.arc(-25, 5, 20, 0, Math.PI * 2);
+  ctx.arc(12, -15, 18, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawSlingshot() {
+  const s = game.slingshot;
+  ctx.fillStyle = '#5d4037';
+  ctx.fillRect(s.x - 7, s.y, 14, GROUND_Y - s.y);
+  ctx.fillStyle = '#4e342e';
+  ctx.fillRect(s.x - 9, s.y - 5, 18, 15);
+  ctx.strokeStyle = '#5d4037';
+  ctx.lineWidth = 9;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(s.x, s.y);
+  ctx.lineTo(s.x - 14, s.y - 38);
+  ctx.moveTo(s.x, s.y);
+  ctx.lineTo(s.x + 14, s.y - 38);
+  ctx.stroke();
+}
+
+function drawTrajectory() {
+  if (!game.dragging) return;
+  const dx = game.slingshot.x - game.bird.x;
+  const dy = game.slingshot.y - game.bird.y;
+  let vx = dx * LAUNCH_POWER;
+  let vy = dy * LAUNCH_POWER;
+  let x = game.bird.x, y = game.bird.y;
+
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  for (let i = 0; i < 60; i++) {
+    vy += GRAVITY;
+    x += vx;
+    y += vy;
+    if (i % 3 === 0) {
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (y > GROUND_Y || y < 0 || x > W || x < 0) break;
+  }
+}
+
+function drawBird(b) {
+  if (!b) return;
+
+  b.trail.forEach((p, i) => {
+    ctx.globalAlpha = (i / b.trail.length) * 0.4;
+    ctx.fillStyle = '#ff9800';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  const g = ctx.createRadialGradient(b.x - 5, b.y - 5, 3, b.x, b.y, b.r);
+  g.addColorStop(0, '#ff6f60');
+  g.addColorStop(1, '#d32f2f');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(b.x + 4, b.y - 4, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.arc(b.x + 6, b.y - 4, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#ff9800';
+  ctx.beginPath();
+  ctx.moveTo(b.x + 12, b.y);
+  ctx.lineTo(b.x + 22, b.y + 2);
+  ctx.lineTo(b.x + 12, b.y + 6);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(b.x - 1, b.y - 10);
+  ctx.lineTo(b.x + 9, b.y - 8);
+  ctx.stroke();
+}
+
+function drawTarget(t) {
+  if (!t.alive) return;
+  const g = ctx.createRadialGradient(t.x - 5, t.y - 5, 3, t.x, t.y, t.r);
+  g.addColorStop(0, t.color);
+  g.addColorStop(1, '#1b5e20');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(t.x - 6, t.y - 4, 5, 0, Math.PI * 2);
+  ctx.arc(t.x + 6, t.y - 4, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.arc(t.x - 6, t.y - 4, 2.5, 0, Math.PI * 2);
+  ctx.arc(t.x + 6, t.y - 4, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#2e7d32';
+  ctx.beginPath();
+  ctx.ellipse(t.x, t.y + 8, 8, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#1b5e20';
+  ctx.beginPath();
+  ctx.arc(t.x - 2, t.y + 8, 1.3, 0, Math.PI * 2);
+  ctx.arc(t.x + 2, t.y + 8, 1.3, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawParticles() {
+  game.particles.forEach(p => {
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+}
+
+function drawUI() {
+  // Panel điểm
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  if (ctx.roundRect) {
+    ctx.beginPath();
+    ctx.roundRect(20, 20, 260, 105, 12);
+    ctx.fill();
+  } else {
+    ctx.fillRect(20, 20, 260, 105);
+  }
+
+  ctx.fillStyle = '#ffeb3b';
+  ctx.font = 'bold 22px Segoe UI, sans-serif';
+  ctx.fillText(`🏆 Điểm: ${game.score}`, 35, 52);
+
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 17px Segoe UI, sans-serif';
+  ctx.fillText(`🎯 Còn lại: ${game.targets.filter(t => t.alive).length}/6`, 35, 78);
+  ctx.fillText(`💥 Lượt bắn: ${game.shots}`, 35, 102);
+
+  // Thanh tiến trình 1000 frame bay
+  const b = game.bird;
+  if (b && b.state === 'flying') {
+    const progress = b.framesAlive / AUTO_RESPAWN_FRAMES;
+    const barX = W - 290, barY = 30, barW = 250, barH = 26;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    if (ctx.roundRect) {
+      ctx.beginPath();
+      ctx.roundRect(barX - 12, barY - 12, barW + 24, barH + 48, 12);
+      ctx.fill();
+    } else {
+      ctx.fillRect(barX - 12, barY - 12, barW + 24, barH + 48);
+    }
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 13px Segoe UI, sans-serif';
+    ctx.fillText(`⏱️ Frame bay: ${b.framesAlive}/${AUTO_RESPAWN_FRAMES}`, barX, barY);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    if (ctx.roundRect) {
+      ctx.beginPath();
+      ctx.roundRect(barX, barY + 8, barW, barH, 6);
+      ctx.fill();
+    } else {
+      ctx.fillRect(barX, barY + 8, barW, barH);
+    }
+
+    const grad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+    grad.addColorStop(0, '#ff0066');
+    grad.addColorStop(0.5, '#ffcc00');
+    grad.addColorStop(1, '#00ffff');
+    ctx.fillStyle = grad;
+    if (ctx.roundRect) {
+      ctx.beginPath();
+      ctx.roundRect(barX, barY + 8, barW * progress, barH, 6);
+      ctx.fill();
+    } else {
+      ctx.fillRect(barX, barY + 8, barW * progress, barH);
+    }
+  }
+}
+
+function drawWin() {
+  ctx.fillStyle = 'rgba(0,0,0,0.78)';
+  ctx.fillRect(0, 0, W, H);
+
+  for (let i = 0; i < 8; i++) {
+    const t = Date.now() / 500 + i;
+    const x = W/2 + Math.sin(t) * 320;
+    const y = H/2 + Math.cos(t * 1.3) * 180;
+    ctx.fillStyle = ['#ff0066', '#ffcc00', '#00ffff', '#66ff00', '#ff6600', '#cc00ff', '#ff9800', '#ffeb3b'][i];
+    ctx.beginPath();
+    ctx.arc(x, y, 8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffeb3b';
+  ctx.font = 'bold 60px Segoe UI, sans-serif';
+  ctx.fillText('🎉 CHIẾN THẮNG! 🎉', W/2, H/2 - 40);
+
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 32px Segoe UI, sans-serif';
+  ctx.fillText(`Tổng điểm: ${game.score}`, W/2, H/2 + 25);
+  ctx.font = 'bold 26px Segoe UI, sans-serif';
+  ctx.fillText(`Số lượt bắn: ${game.shots}`, W/2, H/2 + 65);
+
+  ctx.fillStyle = '#ffcc00';
+  ctx.font = '24px Segoe UI, sans-serif';
+  ctx.fillText('Nhấn R để chơi lại', W/2, H/2 + 140);
+  ctx.textAlign = 'left';
+}
+
+function render() {
+  const sky = ctx.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, '#64b5f6');
+  sky.addColorStop(0.6, '#bbdefb');
+  sky.addColorStop(1, '#e3f2fd');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = 'rgba(255, 235, 59, 0.3)';
+  ctx.beginPath();
+  ctx.arc(W - 150, 120, 85, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#fff59d';
+  ctx.beginPath();
+  ctx.arc(W - 150, 120, 60, 0, Math.PI * 2);
+  ctx.fill();
+
+  game.clouds.forEach(drawCloud);
+
+  // Mặt đất
+  ctx.fillStyle = '#7cb342';
+  ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+  ctx.fillStyle = '#558b2f';
+  ctx.fillRect(0, GROUND_Y + 10, W, 8);
+  ctx.fillStyle = '#33691e';
+  for (let i = 0; i < W; i += 30) {
+    ctx.fillRect(i + (Math.floor(i / 30) % 2) * 10, GROUND_Y + 25, 4, 6);
+  }
+
+  // Vạch trần gợi ý dội
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  ctx.setLineDash([10, 10]);
+  ctx.beginPath();
+  ctx.moveTo(0, 2);
+  ctx.lineTo(W, 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  if (game.dragging) {
+    ctx.strokeStyle = '#3e2723';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(game.slingshot.x - 14, game.slingshot.y - 38);
+    ctx.lineTo(game.bird.x, game.bird.y);
+    ctx.lineTo(game.slingshot.x + 14, game.slingshot.y - 38);
+    ctx.stroke();
+  }
+
+  drawSlingshot();
+  drawTrajectory();
+  game.targets.forEach(drawTarget);
+  drawBird(game.bird);
+  drawParticles();
+  drawUI();
+
+  if (game.state === 'won') drawWin();
+}
+
+function loop() {
+  update();
+  render();
+  requestAnimationFrame(loop);
+}
+
+resetGame();
+loop();
+</script>
+</body>
+</html>
